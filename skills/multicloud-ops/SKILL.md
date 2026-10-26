@@ -1,5 +1,12 @@
 ---
 name: multicloud-ops
+slug: multicloud-ops
+displayName: Multicloud Ops 多云运维
+version: "0.3.1"
+summary: 统一管理九朵云和本地服务器，查询资源、状态与成本，执行运维操作；需配套 noc-ops CLI。
+license: Apache-2.0
+homepage: https://github.com/pholex/multicloud-ops
+tags: [cloud, devops, multicloud, infrastructure]
 description: 多云运维助手（AWS / 阿里云 / 腾讯云 / 火山引擎 / Google Cloud / Microsoft Azure / Oracle Cloud / Cloudflare / Supabase）+ 内网机器（VMware / 深信服 HCI / 群晖 / 任何能 SSH 的主机）——查实例状态、启停/重启实例、同步清单 + SSH 配置、起运维看板、定时重启、探测本机出口 IP。需配套 `ops` CLI（noc-ops，见下方安装）。当用户提到 noc / ops sync / 云运维，或要查实例状态、重启机器、查域名证书、探测出口 IP 时使用本 skill。
 metadata:
   version: "0.3.1"
@@ -33,7 +40,7 @@ ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
 
 > `ops` 把代码和你的数据分离：云账号、实例清单、凭证都在**你本机的工作区**（默认 `~/.noc`），不外泄。
 > `ops setup` 装的是本 skill 的**完整版**（含 runbook 索引与各云速查），会覆盖这份引导版。
-> 本仓引导版通过 `metadata.version` 标注配套发行版本，当前为 `0.2.3`；完整版记录生成时的 noc-ops 版本。更新程序后，手动运行 `ops setup` 刷新 skill。重复执行安装脚本默认保留已安装的工具和已有配置。
+> 本仓引导版通过 `metadata.version` 标注配套发行版本；完整版记录生成时的 noc-ops 版本。更新程序后，手动运行 `ops setup` 刷新 skill。重复执行安装脚本默认保留已安装的工具和已有配置。
 
 ---
 
