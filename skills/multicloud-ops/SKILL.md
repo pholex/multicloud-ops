@@ -46,7 +46,7 @@ ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
    - 对象存储桶的只读明细 → AWS `aws s3`、腾讯云 `coscli ls`、火山引擎 `tosutil ls`（后两者是各自官方工具，tccli / ve 不覆盖桶）。
    - 查单台实例实时状态 → `ops reboot <实例名|ID> --status`（只读）。
    - 重启实例 → `ops reboot <实例名|ID>`（按 cloud 自动选对应云 API；`--dry-run` 只看计划）。
-   - Cloudflare 按量成本 → `ops sync --kind=billing --account=<标签>`；使用 Billable Usage v1，需要 `Billing Read` 和账号发现权限。近三个月起始的账期按产品、账期起始月、原币种汇总，每日更新；不含固定订阅费、税费与历史调整，不是完整账单。查询失败或账号未覆盖时保留旧数据。
+   - Cloudflare 按量成本 → `ops sync --kind=billing --account=<标签>`；使用 Billable Usage v1，需要 `Billing Read` 和账号发现权限。近三个月起始的账期按产品、实际账期起始时间、原币种汇总，每日更新；首页单独展示最近账期费用及起始日期，不计入自然月成本，旧汇总刷新后显示真实账期；不含固定订阅费、税费与历史调整，不是完整账单。查询失败或账号未覆盖时保留旧数据。
    - Cloudflare Containers 容器实例 / D1 数据库 → `ops sync --kind=instances --account=<标签>` / `ops sync --kind=databases --account=<标签>`；Containers 无 SSH，不支持 `ops reboot`，D1 只读元数据、不执行 SQL。token 分别需要 `Workers Containers Read` / `D1 Read`，账号发现需要 `Account Settings Read`。
    - Supabase 项目暂停 / 恢复 → `ops db status|pause|resume <名字|ref>`；pause/resume 是写操作：先 `--dry-run` 给用户看计划，同意后加 `--yes --source <你的客户端名>` 执行；status 只读。
    - 新增实例 / 账号后 → `ops sync`（重扫 + 刷 SSH 配置）；内网机器 `ops sync --local`；Tailscale 组网 `ops sync --tailscale`。
