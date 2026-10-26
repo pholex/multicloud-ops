@@ -60,11 +60,12 @@ ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
 
 ## 它能做什么（装好 `ops` 后）
 
-- **查状态 / 清单 / 域名**：跨 9 朵云全量盘点——实例状态、IP、到期域名、数据库、对象存储（含 COS / TOS / R2 / Supabase Storage）、函数（含 Workers / Edge Functions）、CDN（CloudFront、阿里云 / 腾讯云 / 火山引擎 CDN、Azure Front Door、Oracle Media Streams CDN（OCI Edge / Akamai 视频分发配置）、Cloudflare 代理 zone）、IAM、AI 密钥元数据、消息队列、Cloudflare DNS zone（记录数 / 代理数 / SSL 模式 / 套餐 / Registrar 到期日）、Supabase 项目（算力 / 库占用 / PITR / 备份 / 网络限制）、各云账单与余额（含 Azure MCA 成本、Oracle 用量），一屏看全。
+- **查状态 / 清单 / 域名**：跨 9 朵云全量盘点——实例状态、IP、到期域名、数据库、对象存储（含 COS / TOS / R2 / Supabase Storage）、函数（含 Workers / Edge Functions）、CDN（CloudFront、Google Cloud CDN 后端、阿里云 / 腾讯云 / 火山引擎 CDN、Azure Front Door、Oracle Media Streams CDN（OCI Edge / Akamai 视频分发配置）、Cloudflare 代理 zone）、IAM、AI 密钥元数据、消息队列、Cloudflare DNS zone（记录数 / 代理数 / SSL 模式 / 套餐 / Registrar 到期日）、Supabase 项目（算力 / 库占用 / PITR / 备份 / 网络限制）、各云账单与余额（含 Azure MCA 成本、Oracle 用量、GCP BigQuery 账单导出净成本），一屏看全。
 - **重启 / 启停实例**：定位 → 对应云 API 执行 → 等待并验证状态。
 - **初始化与体检**：`ops init --cloud <云>` 添加所用云账号，保留其它配置；九朵云均可配置。`ops doctor --cloud <云>` 按配置账号验证，`--offline` 只检查本机，`--json` 输出结构化结果。Cloudflare/Supabase 可用 `token_env` 引用环境变量或用 macOS Keychain，TOML 只存变量名。
 - **定位与操作规则**：先 `ops find <目标> --kind instances|databases|… --cloud <云> --account <账号> --region <区域> --json`，按返回的 `capabilities` 使用支持的操作。结果的 `noc://…` 引用可传给 CLI/MCP；重复 ID/同名必须收窄，不能取第一条。`ops reboot`、`ops db` 支持相同筛选参数；`--dry-run --json` 不读取凭证、不调用云 API。重启延续免二次确认规则，数据库暂停/恢复确认后才传 `--yes`；MCP 计划任务创建/取消、SSH 写操作确认后才传 `confirm=true`。
 - **更新**：`ops update --check` 查稳定版，`--dry-run` 离线预览；用户确认后用 `ops update --yes` 更新并刷新 skill。保留 uv 安装来源、extra、扩展与版本约束，不自行把固定/本地来源改成 PyPI。
+- **GCP 成本接入**：需事先开启 Cloud Billing 标准或详细 BigQuery 导出，并在项目配置中设置 `billing_export_table`（project.dataset.table）及数据集位置 `billing_location`。沿用 gcloud 身份，需数据集 dataViewer 和查询项目 jobUser；默认单次查询上限 1 GiB，仅显式 `ops sync --account=<项目ID> --kind=billing` 或成本页刷新执行（可能计费）。按项目、服务、UTC 使用月份汇总近三个月 cost + credits，按原币种合计；未配置或查询失败不能解释为零花费。
 - **同步纳管**：`ops sync` 自动扫描、配 SSH（含跳板）、刷新清单与看板。
 - **判断数据是否新鲜**：查询清单前检查 `data.json` 的 `collection_status`。`status=error` 表示采集失败、已有数据沿用，不代表资源已删除；`partial` 表示列表已更新但补充字段不全。按云、账号、资源类型（AWS 实例再分区域）引用 `last_success_at`；缺失时说“尚无记录”，不能把 `generated_at` 当作所有资源的采集时间。只有成功完成的空查询才清空对应范围；Azure 成本跨订阅共享计费档案，按整批成本处理。
 - **运维看板**：本地密集表格，多类资源分页 + 筛选 + 导出 CSV + 操作日志审计（`http://127.0.0.1:8765`）。
