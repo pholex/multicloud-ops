@@ -2,7 +2,7 @@
 name: multicloud-ops
 description: 多云运维助手（AWS / 阿里云 / 腾讯云 / 火山引擎 / Google Cloud / Microsoft Azure / Oracle Cloud / Cloudflare / Supabase）+ 内网机器（VMware / 深信服 HCI / 群晖 / 任何能 SSH 的主机）——查实例状态、启停/重启实例、同步清单 + SSH 配置、起运维看板、定时重启、探测本机出口 IP。需配套 `ops` CLI（noc-ops，见下方安装）。当用户提到 noc / ops sync / 云运维，或要查实例状态、重启机器、查域名证书、探测出口 IP 时使用本 skill。
 metadata:
-  version: "0.3.0"
+  version: "0.3.1"
   requires:
     bins: ["ops"]
 ---
