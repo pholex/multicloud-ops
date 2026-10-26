@@ -9,7 +9,7 @@ metadata:
 
 # multicloud-ops — 多云运维助手
 
-一个 skill 管 9 朵云：**AWS / 阿里云 / 腾讯云 / 火山引擎 / Google Cloud / Microsoft Azure / Oracle Cloud** 可查可操作（实例 / 域名 / 数据库 / 对象存储 / 函数 / CDN / IAM / 成本 / 额度；启停/重启，GCP 重启为硬 reset），**Cloudflare**（DNS zone / R2 / Workers / CDN）只读纳管，**Supabase**（托管 Postgres / Storage / Edge Functions）只读 + 项目暂停/恢复（需确认）；内网机器（VMware / 深信服 HCI / 群晖 / 任何能 SSH 的内网主机）在内网或 VPN 内也能纳管。能力随日常运维**沉淀成 runbook**，越用越省事。
+一个 skill 管 9 朵云：**AWS / 阿里云 / 腾讯云 / 火山引擎 / Google Cloud / Microsoft Azure / Oracle Cloud** 可查可操作（实例 / 域名 / 数据库 / 对象存储 / 函数 / CDN / IAM / 成本 / 额度；启停/重启，GCP 重启为硬 reset），**Cloudflare**（Containers / D1 / DNS zone / R2 / Workers / CDN）只读纳管，**Supabase**（托管 Postgres / Storage / Edge Functions）只读 + 项目暂停/恢复（需确认）；内网机器（VMware / 深信服 HCI / 群晖 / 任何能 SSH 的内网主机）在内网或 VPN 内也能纳管。能力随日常运维**沉淀成 runbook**，越用越省事。
 
 ---
 
@@ -46,6 +46,7 @@ ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
    - 对象存储桶的只读明细 → AWS `aws s3`、腾讯云 `coscli ls`、火山引擎 `tosutil ls`（后两者是各自官方工具，tccli / ve 不覆盖桶）。
    - 查单台实例实时状态 → `ops reboot <实例名|ID> --status`（只读）。
    - 重启实例 → `ops reboot <实例名|ID>`（按 cloud 自动选对应云 API；`--dry-run` 只看计划）。
+   - Cloudflare Containers 容器实例 / D1 数据库 → `ops sync --kind=instances --account=<标签>` / `ops sync --kind=databases --account=<标签>`；Containers 无 SSH，不支持 `ops reboot`，D1 只读元数据、不执行 SQL。token 分别需要 `Workers Containers Read` / `D1 Read`，账号发现需要 `Account Settings Read`。
    - Supabase 项目暂停 / 恢复 → `ops db status|pause|resume <名字|ref>`；pause/resume 是写操作：先 `--dry-run` 给用户看计划，同意后加 `--yes --source <你的客户端名>` 执行；status 只读。
    - 新增实例 / 账号后 → `ops sync`（重扫 + 刷 SSH 配置）；内网机器 `ops sync --local`；Tailscale 组网 `ops sync --tailscale`。
    - 运维看板 → `ops noc`（默认后台；`status` / `stop` / `restart` 管理）。
@@ -60,7 +61,7 @@ ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
 
 ## 它能做什么（装好 `ops` 后）
 
-- **查状态 / 清单 / 域名**：跨 9 朵云全量盘点——实例状态、IP、到期域名、数据库、对象存储（含 COS / TOS / R2 / Supabase Storage）、函数（含 Workers / Edge Functions）、CDN（CloudFront、Google Cloud CDN 后端、阿里云 / 腾讯云 / 火山引擎 CDN、Azure Front Door、Oracle Media Streams CDN（OCI Edge / Akamai 视频分发配置）、Cloudflare 代理 zone）、IAM、AI 密钥元数据、消息队列、Cloudflare DNS zone（记录数 / 代理数 / SSL 模式 / 套餐 / Registrar 到期日）、Supabase 项目（算力 / 库占用 / PITR / 备份 / 网络限制）、各云账单与余额（含 Azure MCA 成本、Oracle 用量、GCP BigQuery 账单导出净成本），一屏看全。
+- **查状态 / 清单 / 域名**：跨 9 朵云全量盘点——实例状态（含 Cloudflare Containers 的应用 / 镜像 / 规格）、IP、到期域名、数据库（含 Cloudflare D1 的容量 / 只读副本配置）、对象存储（含 COS / TOS / R2 / Supabase Storage）、函数（含 Workers / Edge Functions）、CDN（CloudFront、Google Cloud CDN 后端、阿里云 / 腾讯云 / 火山引擎 CDN、Azure Front Door、Oracle Media Streams CDN（OCI Edge / Akamai 视频分发配置）、Cloudflare 代理 zone）、IAM、AI 密钥元数据、消息队列、Cloudflare DNS zone（记录数 / 代理数 / SSL 模式 / 套餐 / Registrar 到期日）、Supabase 项目（算力 / 库占用 / PITR / 备份 / 网络限制）、各云账单与余额（含 Azure MCA 成本、Oracle 用量、GCP BigQuery 账单导出净成本），一屏看全。
 - **重启 / 启停实例**：定位 → 对应云 API 执行 → 等待并验证状态。
 - **初始化与体检**：`ops init --cloud <云>` 添加所用云账号，保留其它配置；九朵云均可配置。`ops doctor --cloud <云>` 按配置账号验证，`--offline` 只检查本机，`--json` 输出结构化结果。Cloudflare/Supabase 可用 `token_env` 引用环境变量或用 macOS Keychain，TOML 只存变量名。
 - **定位与操作规则**：先 `ops find <目标> --kind instances|databases|… --cloud <云> --account <账号> --region <区域> --json`，按返回的 `capabilities` 使用支持的操作。结果的 `noc://…` 引用可传给 CLI/MCP；重复 ID/同名必须收窄，不能取第一条。`ops reboot`、`ops db` 支持相同筛选参数；`--dry-run --json` 不读取凭证、不调用云 API。重启延续免二次确认规则，数据库暂停/恢复确认后才传 `--yes`；MCP 计划任务创建/取消、SSH 写操作确认后才传 `confirm=true`。
