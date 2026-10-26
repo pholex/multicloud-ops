@@ -57,6 +57,12 @@ ops sync --local    # 只扫机房里的机器（人要在内网或 VPN 里）
 
 `ops update --check` 查版本，`ops update --dry-run` 看步骤，`ops update` 确认后更新并刷新 skill，保留已有扩展和安装来源。详见 [noc-ops 发布与更新说明](https://github.com/pholex/noc-ops/blob/main/RELEASE.md)。
 
+## 问题反馈
+
+安装或使用中遇到问题，打开 [SkillHub 技能页](https://skillhub.cn/skills/indiv-xy/multicloud-ops)，点击「评论」留言。
+
+也可以直接对 AI 说「帮我整理问题反馈」。AI 会整理版本、操作步骤和必要的报错信息，隐去敏感内容，生成一段可复制的文字；检查后粘贴到评论区即可。
+
 ## 许可
 
 Apache License 2.0。
