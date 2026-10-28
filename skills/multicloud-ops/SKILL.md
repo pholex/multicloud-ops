@@ -71,7 +71,7 @@ ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
 
 - **查状态 / 清单 / 域名**：跨 9 朵云全量盘点——实例状态（含 Cloudflare Containers 的应用 / 镜像 / 规格）、IP、到期域名、数据库（含 Cloudflare D1 的容量 / 只读副本配置）、对象存储（含 COS / TOS / R2 / Supabase Storage）、函数（含 Workers / Edge Functions）、CDN（CloudFront、Google Cloud CDN 后端、阿里云 / 腾讯云 / 火山引擎 CDN、Azure Front Door、Oracle Media Streams CDN（OCI Edge / Akamai 视频分发配置）、Cloudflare 代理 zone）、IAM、AI 密钥元数据、消息队列、Cloudflare DNS zone（记录数 / 代理数 / SSL 模式 / 套餐 / Registrar 到期日）、Supabase 项目（算力 / 库占用 / PITR / 备份 / 网络限制）、各云账单与余额（含 Azure MCA 成本、Oracle 用量、GCP BigQuery 账单导出净成本、Cloudflare 按量费用），一屏看全。
 - **重启 / 启停实例**：定位 → 对应云 API 执行 → 等待并验证状态。
-- **初始化与体检**：`ops init --cloud <云>` 添加所用云账号，保留其它配置；九朵云均可配置。`ops doctor --cloud <云>` 按配置账号验证，`--offline` 只检查本机，`--json` 输出结构化结果。Cloudflare/Supabase 可用 `token_env` 引用环境变量或用 macOS Keychain，TOML 只存变量名。
+- **初始化与体检**：`ops init --cloud <云>` 添加所用云账号，保留其它配置；九朵云均可配置。`ops doctor` 检查九朵云的已配置账号及所需依赖，并只读验证身份、Token 或基础 API 访问；未配置的云跳过，通过不代表所有资源权限均可用。`--cloud <云>` 限定云范围，`--offline` 只检查本机配置和依赖、不验证云凭证，`--json` 输出结构化结果。Cloudflare/Supabase 可用 `token_env` 引用环境变量或用 macOS Keychain，TOML 只存变量名。
 - **定位与操作规则**：先 `ops find <目标> --kind instances|databases|… --cloud <云> --account <账号> --region <区域> --json`，按返回的 `capabilities` 使用支持的操作。结果的 `noc://…` 引用可传给 CLI/MCP；重复 ID/同名必须收窄，不能取第一条。`ops reboot`、`ops db` 支持相同筛选参数；`--dry-run --json` 不读取凭证、不调用云 API。重启延续免二次确认规则，数据库暂停/恢复确认后才传 `--yes`；MCP 计划任务创建/取消、SSH 写操作确认后才传 `confirm=true`。
 - **更新**：`ops update --check` 查稳定版，`--dry-run` 离线预览；用户确认后用 `ops update --yes` 更新并刷新 skill。保留 uv 安装来源、extra、扩展与版本约束，不自行把固定/本地来源改成 PyPI。
 - **GCP 成本接入**：需事先开启 Cloud Billing 标准或详细 BigQuery 导出，并在项目配置中设置 `billing_export_table`（project.dataset.table）及数据集位置 `billing_location`。沿用 gcloud 身份，需数据集 dataViewer 和查询项目 jobUser；默认单次查询上限 1 GiB，仅显式 `ops sync --account=<项目ID> --kind=billing` 或成本页刷新执行（可能计费）。按项目、服务、UTC 使用月份汇总近三个月 cost + credits，按原币种合计；未配置或查询失败不能解释为零花费。
@@ -110,7 +110,7 @@ ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
 
 - `ops: command not found` → 未安装，或 `~/.local/bin` 不在 PATH：`export PATH="$HOME/.local/bin:$PATH"`。
 - 某云 CLI 缺失 → 安装脚本会列出缺失工具并提供安装选择或指引，只需安装所用云的工具；`ops sync` 会跳过没装 CLI 的云。
-- 凭证报错 → 按对应云的登录指引配置；`ops doctor` 当前检查部分云 CLI 和 AWS 默认凭证，不代表已验证所有云账号。
+- 凭证报错 → 按对应云的登录指引配置，再运行 `ops doctor --cloud <云>` 检查该云的已配置账号；AWS 使用配置的 profile，腾讯云和火山引擎使用默认 CLI 账号。离线检查不验证凭证；在线检查通过也不代表具备所有资源权限。
 - skill 版本未标注或与 noc-ops 不一致 → 更新程序后运行 `ops setup`，重新生成完整版并记录版本。
 - Cloudflare / Supabase 的 token → 存系统 Keychain 或环境变量，不进配置文件（见工作区 `ops-config.toml` 注释）。
 - `ops "<自然语言>"` 提示「没有安装处理自然语言输入的扩展包」→ 这是预期：终端内的自然语言入口不在公开包里，在 Claude Code / Codex 等客户端里直接用本 skill 即可。
