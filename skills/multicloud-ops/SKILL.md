@@ -18,7 +18,28 @@ metadata:
 
 在 AI 客户端中管理云资源和内网机器：查状态与清单、查看成本、打开运维看板，以及执行受支持的实例操作。需要配套安装 `ops` CLI（noc-ops）。
 
-支持 AWS、阿里云、腾讯云、火山引擎、Google Cloud、Microsoft Azure、Oracle Cloud、Cloudflare、Supabase，以及 VMware、深信服 HCI、群晖和 SSH 主机。各云能力不同，操作前按资源的 `capabilities` 判断。
+## 支持的云厂商
+
+- 阿里云
+- AWS
+- Microsoft Azure
+- Google Cloud（GCP）
+- 腾讯云
+- 火山引擎
+- Oracle Cloud
+- Cloudflare
+- Supabase
+
+各云支持的查询和操作不同，具体限制见下方“各云注意事项”。
+
+## 支持的本地机器
+
+- VMware
+- 深信服 HCI
+- 群晖
+- 可通过 SSH 连接的主机
+
+需具备目标网络连通性和相应凭证；内网机器需接入内网、VPN 或 Tailscale。
 
 ## 使用示例
 

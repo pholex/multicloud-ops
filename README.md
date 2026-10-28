@@ -14,7 +14,28 @@
 
 只查看的事它直接做；会改东西的操作，它先说清要做什么，你点头才动。名字对上好几台机器时它会列出来让你选，不乱猜。
 
-支持 AWS、阿里云、腾讯云、火山引擎、Google Cloud、Azure、Oracle Cloud、Cloudflare、Supabase，以及机房里的 VMware、深信服、群晖和任何能 SSH 的机器。各云支持到什么程度见 [noc-ops 的 README](https://github.com/pholex/noc-ops#支持哪些云)。
+## 支持的云厂商
+
+- 阿里云
+- AWS
+- Microsoft Azure
+- Google Cloud（GCP）
+- 腾讯云
+- 火山引擎
+- Oracle Cloud
+- Cloudflare
+- Supabase
+
+各云支持的查询和操作不同，详见 [noc-ops 支持矩阵](https://github.com/pholex/noc-ops#支持哪些云)。
+
+## 支持的本地机器
+
+- VMware
+- 深信服 HCI
+- 群晖
+- 可通过 SSH 连接的主机
+
+需具备目标网络连通性和相应凭证；内网机器需接入内网、VPN 或 Tailscale。
 
 ## 安装
 
