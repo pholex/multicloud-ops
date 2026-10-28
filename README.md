@@ -87,7 +87,3 @@ ops sync --local    # 只扫机房里的机器（人要在内网或 VPN 里）
 ## 许可
 
 Apache License 2.0。
-
-## 贡献
-
-提交前运行 `sh scripts/install-git-hooks.sh` 启用检查，并遵守 [公开内容检查](PUBLIC_CONTENT.md)。
