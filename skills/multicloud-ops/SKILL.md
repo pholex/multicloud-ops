@@ -7,7 +7,7 @@ summary: 统一管理九朵云和本地服务器，查询资源、状态与成�
 license: Apache-2.0
 homepage: https://github.com/pholex/multicloud-ops
 tags: [cloud, devops, multicloud, infrastructure]
-description: 多云运维助手（AWS / 阿里云 / 腾讯云 / 火山引擎 / Google Cloud / Microsoft Azure / Oracle Cloud / Cloudflare / Supabase）+ 内网机器（VMware / 深信服 HCI / 群晖 / 任何能 SSH 的主机）——查实例状态、启停/重启实例、同步清单 + SSH 配置、起运维看板、定时重启、探测本机出口 IP。需配套 `ops` CLI（noc-ops，见下方安装）。当用户提到 noc / ops sync / 云运维，或要查实例状态、重启机器、查域名证书、探测出口 IP 时使用本 skill。
+description: 使用 ops CLI 管理多云资源和内网机器：查询状态、清单、域名证书与成本，执行受支持的实例操作，打开看板、排查出口连通性。当用户提到 noc、ops sync、云运维或这些日常运维任务时使用；依赖 noc-ops CLI。
 metadata:
   version: "0.3.1"
   requires:
@@ -16,105 +16,141 @@ metadata:
 
 # multicloud-ops — 多云运维助手
 
-一个 skill 管 9 朵云：**AWS / 阿里云 / 腾讯云 / 火山引擎 / Google Cloud / Microsoft Azure / Oracle Cloud** 可查可操作（实例 / 域名 / 数据库 / 对象存储 / 函数 / CDN / IAM / 成本 / 额度；启停/重启，GCP 重启为硬 reset），**Cloudflare**（Containers / D1 / DNS zone / R2 / Workers / CDN / 按量成本）只读纳管，**Supabase**（托管 Postgres / Storage / Edge Functions）只读 + 项目暂停/恢复（需确认）；内网机器（VMware / 深信服 HCI / 群晖 / 任何能 SSH 的内网主机）在内网或 VPN 内也能纳管。能力随日常运维**沉淀成 runbook**，越用越省事。
+在 AI 客户端中管理云资源和内网机器：查状态与清单、查看成本、打开运维看板，以及执行受支持的实例操作。需要配套安装 `ops` CLI（noc-ops）。
 
----
+支持 AWS、阿里云、腾讯云、火山引擎、Google Cloud、Microsoft Azure、Oracle Cloud、Cloudflare、Supabase，以及 VMware、深信服 HCI、群晖和 SSH 主机。各云能力不同，操作前按资源的 `capabilities` 判断。
 
-## ⚠️ 前置：本 skill 依赖 `ops` CLI（noc-ops）
+## 使用示例
 
-本 skill 是 `ops` CLI 的 agent 入口——确定性的扫描、同步、看板、重启都由 `ops` 完成。**没有装 `ops`，本 skill 无法工作。**
+安装并配置好账号后，直接在 WorkBuddy、Codex、Claude Code 等客户端对 AI 说：
 
-**先确认是否已安装：**
-```bash
-ops --version     # 打印 noc-ops 版本 = 已装好，直接往下用
-```
+| 你可以这样问 | 会做什么 |
+|---|---|
+| 列出我的云服务器，标出停止运行的机器 | 读取已纳管清单，说明数据时间；需要时刷新 |
+| 打开运维看板 | 启动本地看板，查看资源、成本与操作日志 |
+| 检查为什么 AWS 账号连接失败 | 只读检查配置、CLI 和身份访问，给出下一步 |
 
-**没装的话（macOS / Linux）：**
-```bash
-curl -fsSL https://raw.githubusercontent.com/pholex/noc-ops/main/scripts/install.sh | sh   # 检查 uv / noc-ops / 云 CLI，仅补齐缺失项
-ops setup           # 生成或刷新完整版 skill，接入本机客户端
-ops init            # 一问一答，填上用户的云账号（需安装并登录所用云的 CLI）
-ops sync            # 扫所有云，生成清单
-ops sync --local    # 只扫机房里的机器（需在内网或 VPN 里）
-```
+这些示例中的自然语言发给 AI 客户端即可，无需在终端运行 `ops "问题"`。
 
-> `ops` 把代码和你的数据分离：云账号、实例清单、凭证都在**你本机的工作区**（默认 `~/.noc`），不外泄。
-> `ops setup` 装的是本 skill 的**完整版**（含 runbook 索引与各云速查），会覆盖这份引导版。
-> 本仓引导版通过顶层 `version` 标注 SkillHub 技能包版本，通过 `metadata.version` 标注配套 noc-ops 版本；完整版记录生成时的 noc-ops 版本。更新程序后，手动运行 `ops setup` 刷新 skill。重复执行安装脚本默认保留已安装的工具和已有配置。
+## 安装与初始化
 
----
+### 1. 检查或安装工具
 
-## 给 AI 助手的执行规则（重要）
-
-1. **动手前先确认 `ops` 可用**：运行 `ops --version`。
-   - 若 `command not found` → **不要自己用 aws/tccli/aliyun/gcloud 手动运维**；告诉用户「本 skill 需要先安装 `ops` CLI」，给出上方安装步骤，停下等用户装好。
-2. **`ops` 可用时，用它的确定性子命令，而不是再套一层 LLM**：
-   - 查实例 / 域名 / 数据库 / 存储 / 函数 / CDN / IAM / 账务清单 → 先读工作区的 `inventory.md`（人读）或 `data.json`（机读）；过时就 `ops sync`（全量）或 `ops sync --kind=<instances|domains|databases|storage|serverless|cdn|iam|billing|credits|…>`（只刷一类），`ops sync --account=<账号>` 只刷一个账号。
-   - 对象存储桶的只读明细 → AWS `aws s3`、腾讯云 `coscli ls`、火山引擎 `tosutil ls`（后两者是各自官方工具，tccli / ve 不覆盖桶）。
-   - 查单台实例实时状态 → `ops reboot <实例名|ID> --status`（只读）。
-   - 重启实例 → `ops reboot <实例名|ID>`（按 cloud 自动选对应云 API；`--dry-run` 只看计划）。
-   - Cloudflare 按量成本 → `ops sync --kind=billing --account=<标签>`；使用 Billable Usage v1，需要 `Billing Read` 和账号发现权限。近三个月起始的账期按产品、实际账期起始时间、原币种汇总，每日更新；首页单独展示最近账期费用及起始日期，不计入自然月成本，旧汇总刷新后显示真实账期；不含固定订阅费、税费与历史调整，不是完整账单。查询失败或账号未覆盖时保留旧数据。
-   - Cloudflare Containers 容器实例 / D1 数据库 → `ops sync --kind=instances --account=<标签>` / `ops sync --kind=databases --account=<标签>`；Containers 无 SSH，不支持 `ops reboot`，D1 只读元数据、不执行 SQL。token 分别需要 `Workers Containers Read` / `D1 Read`，账号发现需要 `Account Settings Read`。
-   - Supabase 项目暂停 / 恢复 → `ops db status|pause|resume <名字|ref>`；pause/resume 是写操作：先 `--dry-run` 给用户看计划，同意后加 `--yes --source <你的客户端名>` 执行；status 只读。
-   - 新增实例 / 账号后 → `ops sync`（重扫 + 刷 SSH 配置）；内网机器 `ops sync --local`；Tailscale 组网 `ops sync --tailscale`。
-   - 运维看板 → `ops noc`（默认后台；`status` / `stop` / `restart` 管理）。
-   - 本机出口 IP / 线路可达性 → `ops netprobe [--target host:port]`。
-   - 清单覆盖不到的查询 → 直接用对应云 CLI（aws / aliyun / tccli / ve / gcloud / az / oci）只读命令。
-   - `ops "<自然语言>"` 是给**终端用户**的入口，由可选扩展包提供、公开包不含；在 Claude Code / Codex 里**不要**调它，本 skill 就是这里的入口。
-3. **安全**：只读自动执行；**实例重启免确认**（低风险可逆）；其它写操作（停机 / 改配置 / 删资源 / SSH 改动）**先回显计划、等用户确认**。写操作做完用 `ops log <action> [target] --source <你的客户端名>` 记一条审计。
-4. **解析不到目标就停**：实例 / 区域找不到、有歧义时，如实回报并请用户补充，绝不猜测或对不确定对象动手。
-5. **与 aws-*（AWS Agent Toolkit）等官方云技能的分工**：若同时装有 `aws-compute` / `aws-containers` / `aws-cdk` / `aws-serverless` 等——**纳管资产的日常运维**（查状态、启停/重启、清单同步）一律走本 skill / `ops`，即使意图字面上也命中 aws-* 的描述；aws-* 用于**建设 / 深度排障 / 成本分析**（写 CDK/CloudFormation、架构设计、账单优化），与本 skill 互补。不论走哪个技能，凡涉及纳管资产的**写操作**仍要过第 3 条闸门。
-
----
-
-## 它能做什么（装好 `ops` 后）
-
-- **查状态 / 清单 / 域名**：跨 9 朵云全量盘点——实例状态（含 Cloudflare Containers 的应用 / 镜像 / 规格）、IP、到期域名、数据库（含 Cloudflare D1 的容量 / 只读副本配置）、对象存储（含 COS / TOS / R2 / Supabase Storage）、函数（含 Workers / Edge Functions）、CDN（CloudFront、Google Cloud CDN 后端、阿里云 / 腾讯云 / 火山引擎 CDN、Azure Front Door、Oracle Media Streams CDN（OCI Edge / Akamai 视频分发配置）、Cloudflare 代理 zone）、IAM、AI 密钥元数据、消息队列、Cloudflare DNS zone（记录数 / 代理数 / SSL 模式 / 套餐 / Registrar 到期日）、Supabase 项目（算力 / 库占用 / PITR / 备份 / 网络限制）、各云账单与余额（含 Azure MCA 成本、Oracle 用量、GCP BigQuery 账单导出净成本、Cloudflare 按量费用），一屏看全。
-- **重启 / 启停实例**：定位 → 对应云 API 执行 → 等待并验证状态。
-- **初始化与体检**：`ops init --cloud <云>` 添加所用云账号，保留其它配置；九朵云均可配置。`ops doctor` 检查九朵云的已配置账号及所需依赖，并只读验证身份、Token 或基础 API 访问；未配置的云跳过，通过不代表所有资源权限均可用。`--cloud <云>` 限定云范围，`--offline` 只检查本机配置和依赖、不验证云凭证，`--json` 输出结构化结果。Cloudflare/Supabase 可用 `token_env` 引用环境变量或用 macOS Keychain，TOML 只存变量名。
-- **定位与操作规则**：先 `ops find <目标> --kind instances|databases|… --cloud <云> --account <账号> --region <区域> --json`，按返回的 `capabilities` 使用支持的操作。结果的 `noc://…` 引用可传给 CLI/MCP；重复 ID/同名必须收窄，不能取第一条。`ops reboot`、`ops db` 支持相同筛选参数；`--dry-run --json` 不读取凭证、不调用云 API。重启延续免二次确认规则，数据库暂停/恢复确认后才传 `--yes`；MCP 计划任务创建/取消、SSH 写操作确认后才传 `confirm=true`。
-- **更新**：`ops update --check` 查稳定版，`--dry-run` 离线预览；用户确认后用 `ops update --yes` 更新并刷新 skill。保留 uv 安装来源、extra、扩展与版本约束，不自行把固定/本地来源改成 PyPI。
-- **GCP 成本接入**：需事先开启 Cloud Billing 标准或详细 BigQuery 导出，并在项目配置中设置 `billing_export_table`（project.dataset.table）及数据集位置 `billing_location`。沿用 gcloud 身份，需数据集 dataViewer 和查询项目 jobUser；默认单次查询上限 1 GiB，仅显式 `ops sync --account=<项目ID> --kind=billing` 或成本页刷新执行（可能计费）。按项目、服务、UTC 使用月份汇总近三个月 cost + credits，按原币种合计；未配置或查询失败不能解释为零花费。
-- **同步纳管**：`ops sync` 自动扫描、配 SSH（含跳板）、刷新清单与看板。
-- **判断数据是否新鲜**：查询清单前检查 `data.json` 的 `collection_status`。`status=error` 表示采集失败、已有数据沿用，不代表资源已删除；`partial` 表示列表已更新但补充字段不全。按云、账号、资源类型（AWS 实例再分区域）引用 `last_success_at`；缺失时说“尚无记录”，不能把 `generated_at` 当作所有资源的采集时间。只有成功完成的空查询才清空对应范围；Azure 成本跨订阅共享计费档案，按整批成本处理。
-- **运维看板**：本地密集表格，多类资源分页 + 筛选 + 导出 CSV + 操作日志审计（`http://127.0.0.1:8765`）。
-- **定时重启**：各云统一用 AWS EventBridge 云端调度，本机零常驻。
-- **能力沉淀**：做完一项新运维即可存成 runbook，下次自动复用。
-
----
-
-## 可选增强：AWS 官方 Agent Toolkit 技能
-
-装好 `aws` CLI 后，**推荐（非必需）** 顺手安装 AWS 官方的 agent 技能包——`ops` 不依赖它们照常工作，但它们能补上本 skill 不覆盖的**建设 / 深度排障 / 成本分析**能力：
+先运行 `ops --version`。如果能显示版本，跳过安装；如果未安装，macOS / Linux 可运行：
 
 ```bash
-# Claude Code：装官方 aws-core 插件
-/plugin install aws-core@claude-plugins-official
-
-# 其它客户端：见 https://github.com/aws/agent-toolkit-for-aws
+curl -fsSL https://raw.githubusercontent.com/pholex/noc-ops/main/scripts/install.sh | sh
 ```
 
-装好后按上方执行规则第 5 条分工使用，互不冲突。
+安装脚本检查并补齐缺失工具，保留已安装的工具和已有配置。只需安装、登录实际使用的云 CLI。
 
----
+### 2. 配置账号
+
+```bash
+ops setup   # 接入本机客户端，生成完整版 skill
+ops init    # 按提示选择所用云，填写账号配置
+```
+
+仅添加某朵云可用 `ops init --cloud aws` 等选项，已有其它账号、备注和计划任务会保留。Cloudflare / Supabase 使用环境变量或 Keychain 保存 Token，配置文件只写 `token_env` 变量名。
+
+### 3. 按场景同步
+
+| 场景 | 命令 | 前提 |
+|---|---|---|
+| 云资源 | `ops sync` | 已配置账号并完成相应云的登录 |
+| 机房或局域网机器 | `ops sync --local` | 已配置本地机器，并接入目标内网或 VPN |
+| Tailscale 机器 | `ops sync --tailscale` | 已配置目标并具备网络连通性 |
+
+按实际场景选择，不必依次运行全部命令。同步会生成清单并刷新 SSH 配置；完成后可运行 `ops noc` 打开看板（默认 `http://127.0.0.1:8765`）。
+
+账号配置与清单保存在本机工作区，默认 `~/.noc`。`ops setup` 会将这份引导版替换为含各云速查和 runbook 指引的完整版。
+
+## 常见问题
+
+**必须配置九朵云、安装全部云 CLI 吗？**  不必，只配置自己使用的云。`ops doctor` 会跳过未配置的云；内网机器按实际网络和连接方式配置。
+
+**为什么装了 skill 还需要 ops？**  Skill 告诉 AI 如何完成任务，`ops` 负责确定性的扫描、同步、看板和实例操作。缺少它时先完成安装，不能直接绕过它手动运维。
+
+**刷新成本或额度会收费吗？**  可能。AWS 成本及额度中的 credits 抵扣查询会调用收费的 Cost Explorer；GCP 成本查询使用 BigQuery，也可能计费。其它云按对应接口规则判断。优先读取已有数据，按需限定账号和类型刷新，不频繁全量查询。
+
+**查不到资源，是否说明它已经被删除？**  不一定，也可能未纳管、无权限或采集失败。先核对账号、区域与采集状态；查询失败不能解释为资源为空或花费为零。
+
+**怎么更新？skill 和 ops 的版本必须相同吗？**  `ops update --check` 查稳定版，`ops update --dry-run` 预览；用户确认后用 `ops update --yes` 更新并刷新 skill。保留原安装来源、extra、扩展与版本约束，不自行把本地或固定来源切到 PyPI。手动更新程序后运行 `ops setup`。引导版顶层 `version` 是 SkillHub 包版本，`metadata.version` 是配套 noc-ops 版本；完整版记录生成时的 noc-ops 版本，两种版本号不必相同。
+
+**遇到报错怎么办？**
+
+| 现象 | 下一步 |
+|---|---|
+| `ops: command not found` | 确认已安装；检查 `~/.local/bin` 是否在 PATH，必要时 `export PATH="$HOME/.local/bin:$PATH"` |
+| 某云 CLI 缺失 | 按安装脚本提示补齐所用云的工具；`ops sync` 会跳过缺 CLI 的云 |
+| 凭证或访问报错 | 按该云登录指引配置，再运行 `ops doctor --cloud <云>`；AWS 用配置的 profile，腾讯云和火山引擎用默认 CLI 账号 |
+| 完整版 skill 未安装或版本落后 | 运行 `ops setup` 重新生成 |
+| `ops "问题"` 提示缺少扩展包 | 公开包不含终端自然语言入口；在 AI 客户端里直接提问 |
+
+`ops doctor` 检查已配置账号及所需依赖，只读验证身份、Token 或基础 API 访问；通过不代表所有资源权限均可用。`--offline` 只检查本机配置和依赖、不验证云凭证，`--json` 输出结构化结果。仍无法解决时，说「帮我整理问题反馈」，见文末入口。
+
+## AI 执行规则
+
+### 工具与目标
+
+- 动手前先运行 `ops --version`。命令不可用时给出安装指引并等待用户安装，不自行改用云 CLI 绕过前置条件。
+- 使用 `ops` 的确定性子命令。`ops "<自然语言>"` 依赖可选扩展，AI 客户端中不要再调用它套一层 LLM。
+- 先用 `ops find <目标> --kind instances|databases|… --cloud <云> --account <账号> --region <区域> --json` 定位；按返回的 `capabilities` 选择操作，`noc://…` 引用可传给 CLI/MCP。重复 ID、同名或区域不明时收窄范围，不能取第一条或猜测对象。
+- 操作前回显目标的名称、ID、云、账号与区域。`ops reboot`、`ops db` 支持相同筛选参数；`--dry-run --json` 不读取凭证、不调用云 API。
+
+### 数据与常用命令
+
+先读工作区 `inventory.md` 或 `data.json`。检查 `collection_status`，按云、账号、资源类型引用 `last_success_at`（AWS 实例再分区域）。`error` 表示采集失败、旧数据沿用，`partial` 表示采集不完整；缺时间则说“尚无记录”，不能以 `generated_at` 代替各资源采集时间。只有成功的空查询才清空对应范围；Azure 成本跨订阅共享计费档案，按整批处理。
+
+| 任务 | 入口 |
+|---|---|
+| 刷新资源 | `ops sync --kind=<类型> --account=<账号>`；类型包括 instances、domains、databases、storage、serverless、cdn、iam、billing、credits 等，以该云支持范围为准 |
+| 查实例实时状态 / 重启 | `ops reboot <目标> --status` / `ops reboot <目标>`；重启后等待并复查状态 |
+| 看板 | `ops noc`，默认后台；用 `ops noc status`、`ops noc stop`、`ops noc restart` 管理 |
+| 出口 IP / 目标连通性 | `ops netprobe` / `ops netprobe --target <host:port>` |
+| 桶内只读明细 | AWS `aws s3`、腾讯云 `coscli ls`、火山引擎 `tosutil ls`；tccli / ve 不覆盖桶内对象查询 |
+| 定时重启 | 使用已接入的 AWS EventBridge 云端调度；按工具与 runbook 支持的云和账号执行，不能将所有云视为均支持 |
+
+新增账号后按所用场景重扫。清单覆盖不到的查询可用对应云 CLI（aws / aliyun / tccli / ve / gcloud / az / oci）的只读命令。完成新任务后可提议沉淀为 runbook，用户同意后保存。
+
+### 操作边界
+
+- 只读操作自动执行；**用户要求的实例重启免二次确认**。GCP 重启是硬 reset。其它写操作（停机、改配置、删资源、SSH 改动）先回显计划，用户确认后执行。
+- Supabase 暂停/恢复先展示 `--dry-run`，确认后传 `--yes`；MCP 计划任务创建/取消、SSH 写操作确认后才传 `confirm=true`。实时状态查询失败时不继续数据库写操作。
+- 写操作完成后记审计；`ops reboot` 自带日志，不重复记录，其它未自动记录的写操作用 `ops log <action> <target> --source <你的客户端名>`。
+- 若装有 AWS Agent Toolkit 等官方云技能，纳管资产的日常查询、实例操作和同步使用本 skill / `ops`；架构建设、深度排障和成本分析可用官方技能，仍遵守上述写操作边界。官方技能非必需，安装入口见 [AWS Agent Toolkit](https://github.com/aws/agent-toolkit-for-aws)。
+
+## 各云注意事项
+
+### Cloudflare
+
+Containers、D1、DNS zone、R2、Workers、代理 zone CDN 和按量成本只读纳管。Containers 无 SSH，不支持 `ops reboot`；D1 只读元数据，不执行 SQL。
+
+- Containers / D1：用 `ops sync --account=<标签>` 搭配 `--kind=instances` 或 `--kind=databases`，分别需 `Workers Containers Read` / `D1 Read`；账号发现需 `Account Settings Read`。
+- 成本：`ops sync --kind=billing --account=<标签>`，使用 Billable Usage v1，需 `Billing Read` 和账号发现权限。近三个月起始的账期按产品、实际账期起始时间和原币种汇总，每日更新。首页单独展示最近账期费用及起始日期，不计入自然月成本；旧汇总刷新后显示实际账期。
+- 按量费用不含固定订阅费、税费和历史调整，不是完整账单。查询失败或账号未覆盖时保留旧数据。
+
+### Supabase
+
+托管 Postgres、Storage、Edge Functions 只读纳管；项目暂停/恢复是支持的写操作。`ops db status <名字|ref>` 只读，`ops db pause|resume <名字|ref>` 按上述确认流程执行，并使用 `--source <你的客户端名>`。Token 存环境变量或 Keychain，不写入 TOML。
+
+### Google Cloud 成本
+
+需开启 Cloud Billing 标准或详细 BigQuery 导出，并配置 `billing_export_table`（project.dataset.table）及 `billing_location`。沿用 gcloud 身份，需要数据集 dataViewer 和查询项目 jobUser。
+
+默认单次查询上限 1 GiB，仅显式 `ops sync --account=<项目ID> --kind=billing` 或成本页刷新时查询，可能计费。近三个月按项目、服务、UTC 使用月份汇总 cost + credits，保留原币种；未配置或失败不能解释为零花费。
+
+### CDN 与本地机器
+
+- CDN 覆盖 CloudFront、Google Cloud CDN 后端、阿里云 / 腾讯云 / 火山引擎 CDN、Azure Front Door、Oracle Media Streams CDN 和 Cloudflare 代理 zone。Oracle 仅支持 Media Streams 内的 OCI Edge / Akamai 视频分发配置。
+- 本地机器需先接入目标内网、VPN 或 Tailscale；连不上不能直接断言机器故障。操作能力以具体资源为准，不能把深信服 HCI、群晖或 SSH 主机等同于支持 `ops reboot` 的云实例。
 
 ## 问题反馈
 
-安装、使用问题或功能建议，统一到 [SkillHub 技能页](https://skillhub.cn/skills/indiv-xy/multicloud-ops)的「评论」留言。用户也可以直接说「帮我整理问题反馈」。
+安装、使用问题或功能建议，到 [SkillHub 技能页](https://skillhub.cn/skills/indiv-xy/multicloud-ops)的「评论」留言，也可对 AI 说「帮我整理问题反馈」。
 
-收到整理反馈的请求时，优先使用当前对话中的信息；必要时只读检查本机系统和 `ops --version`。整理操作系统、客户端、ops 与 skill 版本、操作步骤、预期结果、实际现象和必要的报错片段；无法获取的项目注明未知，不要求用户先修好工具才能反馈。
+AI 优先使用当前对话信息，必要时只读检查系统和 `ops --version`；整理系统、客户端、ops 与 skill 版本、步骤、预期结果、实际现象及必要报错。未知项注明未知，不要求先修好工具才能反馈。
 
-生成可复制的反馈草稿前，隐去 Token、密码、私钥、真实账号与资源标识、内网地址和个人路径；不附完整配置、资源清单或原始日志。把草稿和评论区入口交给用户检查后自行提交，不自动发布评论，也不为收集反馈重新执行重启、停机等写操作。
+草稿须隐去 Token、密码、私钥、真实账号与资源标识、内网地址和个人路径，不附完整配置、清单或原始日志。交给用户检查并自行提交，不自动发布评论，也不为收集反馈重做重启、停机等写操作。
 
-## 故障速查
-
-- `ops: command not found` → 未安装，或 `~/.local/bin` 不在 PATH：`export PATH="$HOME/.local/bin:$PATH"`。
-- 某云 CLI 缺失 → 安装脚本会列出缺失工具并提供安装选择或指引，只需安装所用云的工具；`ops sync` 会跳过没装 CLI 的云。
-- 凭证报错 → 按对应云的登录指引配置，再运行 `ops doctor --cloud <云>` 检查该云的已配置账号；AWS 使用配置的 profile，腾讯云和火山引擎使用默认 CLI 账号。离线检查不验证凭证；在线检查通过也不代表具备所有资源权限。
-- skill 版本未标注或与 noc-ops 不一致 → 更新程序后运行 `ops setup`，重新生成完整版并记录版本。
-- Cloudflare / Supabase 的 token → 存系统 Keychain 或环境变量，不进配置文件（见工作区 `ops-config.toml` 注释）。
-- `ops "<自然语言>"` 提示「没有安装处理自然语言输入的扩展包」→ 这是预期：终端内的自然语言入口不在公开包里，在 Claude Code / Codex 等客户端里直接用本 skill 即可。
-
----
-
-本 skill 以 Apache License 2.0 发布，与 `noc-ops` CLI 同许可。
+本 skill 以 Apache License 2.0 发布，与 noc-ops CLI 同许可；许可证与版权说明见 `LICENSE.md`、`NOTICE.md`。
