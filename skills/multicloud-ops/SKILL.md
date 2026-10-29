@@ -2,7 +2,7 @@
 name: multicloud-ops
 slug: multicloud-ops
 displayName: Multicloud Ops 多云运维
-version: "0.3.2"
+version: "0.3.3"
 summary: 统一管理九朵云和本地服务器，查询资源、状态与成本，执行运维操作；需配套 noc-ops CLI。
 license: Apache-2.0
 homepage: https://github.com/pholex/multicloud-ops
