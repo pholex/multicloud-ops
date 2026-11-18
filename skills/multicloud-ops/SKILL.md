@@ -9,7 +9,7 @@ homepage: https://github.com/pholex/multicloud-ops
 tags: [cloud, devops, multicloud, infrastructure]
 description: 使用 ops CLI 管理多云资源和内网机器：查询状态、清单、域名证书与成本，执行受支持的实例操作，打开看板、排查出口连通性。当用户提到 noc、ops sync、云运维或这些日常运维任务时使用；依赖 noc-ops CLI。
 metadata:
-  version: "0.3.1"
+  version: "0.3.2"
   requires:
     bins: ["ops"]
 ---
@@ -104,6 +104,7 @@ ops init    # 按提示选择所用云，填写账号配置
 |---|---|
 | `ops: command not found` | 确认已安装；检查 `~/.local/bin` 是否在 PATH，必要时 `export PATH="$HOME/.local/bin:$PATH"` |
 | 某云 CLI 缺失 | 按安装脚本提示补齐所用云的工具；`ops sync` 会跳过缺 CLI 的云 |
+| 阿里云域名扫描报错或清单里没有阿里云域名 | 阿里云 CLI 3.5 起需要域名插件：`aliyun plugin install --name aliyun-cli-domain`，再运行 `ops sync --kind=domains` |
 | 凭证或访问报错 | 按该云登录指引配置，再运行 `ops doctor --cloud <云>`；AWS 用配置的 profile，腾讯云和火山引擎用默认 CLI 账号 |
 | 完整版 skill 未安装或版本落后 | 运行 `ops setup` 重新生成 |
 | `ops "问题"` 提示缺少扩展包 | 公开包不含终端自然语言入口；在 AI 客户端里直接提问 |
